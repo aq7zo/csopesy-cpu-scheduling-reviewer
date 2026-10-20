@@ -159,6 +159,11 @@ button.danger{color:var(--bad)}
 .s-grid{display:flex;flex-wrap:wrap;gap:16px;align-items:start}
 .s-grid>.panel-col{display:grid;gap:10px;align-content:start;flex:1 1 280px;min-width:0}
 .s-grid>#s-rem{flex:0 1 auto}
+#s-remt .qgrip{display:grid;place-items:center;padding:4px 2px;color:var(--muted);cursor:grab;touch-action:none}
+#s-remt tr.dragging{opacity:.5}
+#s-remt tr.dragging .qgrip{cursor:grabbing}
+#s-remt tr.done td:nth-child(2),#s-remt tr.done input{opacity:.45;text-decoration:line-through}
+#s-remt button.q{padding:3px 8px}
 .s-grid>[hidden]{display:none}
 .s-grid .label{display:block;line-height:1.4}
 #s-peek{touch-action:none;user-select:none}
@@ -502,11 +507,14 @@ function sAct(a){
   else{const j=a==="left"?k-1:k+1;[B[j],B[k]]=[B[k],B[j]];sSel=j}
   $("s-result").textContent="";renderScratch();
 }
-const sRem={}; // practice-only scratch values for SRTF/RR remaining burst time
+const sRem={},sDone={};let sOrder=[]; // practice-only scratch: remaining burst time, queue order, done flags
 function renderRem(){
   const on=algo==="srtf"||algo==="rr";$("s-rem").hidden=!on;if(!on)return;
-  $("s-remt").innerHTML=`<thead><tr><th>Process</th><th class="num">${V("bt","Rem. BT")}</th></tr></thead><tbody>`+
-    procs.map((p,i)=>`<tr><td>${pid(p.id,i)}</td><td class="num practice"><input type="number" min="0" data-rem="${p.id}" value="${sRem[p.id]??""}" aria-label="${p.id} remaining burst time"></td></tr>`).join("")+"</tbody>";
+  const ids=procs.map(p=>p.id);sOrder=[...sOrder.filter(id=>ids.includes(id)),...ids.filter(id=>!sOrder.includes(id))];
+  sOrder=[...sOrder.filter(id=>!sDone[id]),...sOrder.filter(id=>sDone[id])]; // done rows sink to the bottom and stay there
+  $("s-remt").innerHTML=`<thead><tr><th></th><th>Process</th><th class="num">${V("bt","Rem. BT")}</th><th></th></tr></thead><tbody>`+
+    sOrder.map(id=>`<tr data-q="${id}"${sDone[id]?' class="done"':""}><td>${sDone[id]?"":`<span class="qgrip" title="Drag to reorder" aria-hidden="true"><svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">${[3,8,13].map(y=>`<circle cx="2.5" cy="${y}" r="1.6"/><circle cx="7.5" cy="${y}" r="1.6"/>`).join("")}</svg></span>`}</td><td>${pid(id,ids.indexOf(id))}</td><td class="num practice"><input type="number" min="0" data-rem="${id}" value="${sRem[id]??""}" aria-label="${id} remaining burst time"></td>
+      <td><button type="button" class="q" data-qa="done" aria-pressed="${!!sDone[id]}">${sDone[id]?"Undo":"Done"}</button></td></tr>`).join("")+"</tbody>";
 }
 function renderScratch(){
   if(!result||$("scratch").hidden)return;
@@ -624,6 +632,24 @@ $("play").onclick=()=>{
   timer=setInterval(()=>{if(step>=result.steps.length-1){clearInterval(timer);timer=null;$("play").textContent="Play";return}go(step+1)},1100);
 };
 $("s-remt").addEventListener("input",e=>{const k=e.target.dataset.rem;if(k)sRem[k]=e.target.value});
+// FLIP: after a reorder, slide each row from where it was drawn to its new slot
+const sFlip=(change,skip)=>{const tb=()=>$("s-remt").tBodies[0],top=x=>x.offsetTop+$("s-remt").getBoundingClientRect().top,
+  was=new Map([...tb().rows].map(x=>[x.dataset.q,x.getBoundingClientRect().top]));change();
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  for(const x of tb().rows){const dy=was.get(x.dataset.q)-top(x);if(dy&&x!==skip)x.animate([{transform:`translateY(${dy}px)`},{transform:"none"}],{duration:180,easing:"ease-out"})}};
+// Done/Undo reinserts at the active/done boundary, so the newest done row stacks on top of older ones
+$("s-remt").addEventListener("click",e=>{const b=e.target.closest("[data-qa]");if(!b)return;const id=b.closest("tr").dataset.q;
+  sFlip(()=>{sOrder.splice(sOrder.indexOf(id),1);sDone[id]=!sDone[id];sOrder.splice(sOrder.filter(x=>!sDone[x]).length,0,id);renderRem()});
+  $("s-remt").querySelector(`tr[data-q="${id}"] [data-qa]`).focus()});
+$("s-remt").addEventListener("pointerdown",e=>{const g=e.target.closest(".qgrip");if(!g)return;e.preventDefault();const r=g.closest("tr"),tb=r.parentNode;r.classList.add("dragging");
+  // live-shift: move the held row past any neighbour whose midpoint the pointer crosses, then commit the DOM order on release.
+  // Listeners sit on window, not pointer capture: moving the row in the DOM would release the capture.
+  // done rows are locked at the bottom, so an active row can only land above the first of them
+  const t0=()=>$("s-remt").getBoundingClientRect().top,
+    mv=m=>{const rows=[...tb.children],o=rows.find(x=>x!==r&&!x.classList.contains("done")&&m.clientY<t0()+x.offsetTop+x.offsetHeight/2)||rows.find(x=>x.classList.contains("done"))||null;
+      if(o!==r.nextElementSibling)sFlip(()=>tb.insertBefore(r,o),r)},
+    up=()=>{removeEventListener("pointermove",mv);removeEventListener("pointerup",up);removeEventListener("pointercancel",up);sOrder=[...tb.children].map(x=>x.dataset.q);renderRem()};
+  addEventListener("pointermove",mv);addEventListener("pointerup",up);addEventListener("pointercancel",up)});
 $("practice").onclick=e=>{e.currentTarget.ariaPressed=e.currentTarget.ariaPressed!=="true";renderResults()};
 const pickBar=e=>{const g=e.target.closest(".seg[data-a]");if(!g)return;const a=+g.dataset.a;sel=sel===a?null:a;renderViz();const f=document.querySelector(`.seg[data-a="${a}"]`);if(f)f.focus()};
 $("gantt").addEventListener("click",pickBar);
