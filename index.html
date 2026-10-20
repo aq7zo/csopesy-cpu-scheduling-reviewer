@@ -54,6 +54,8 @@ button{font:500 14px var(--body);border:1px solid var(--line);background:var(--s
 button:hover{border-color:var(--accent)}
 button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
 button.ghost{border-color:transparent;background:none;color:var(--muted);padding:4px 8px}
+button:has(>.ico){display:inline-flex;align-items:center;justify-content:center;gap:4px}
+.ico{width:16px;height:16px;flex:none}
 .pid{display:inline-flex;align-items:center;gap:6px;font:600 13px var(--mono)}
 .dot{width:12px;height:12px;border-radius:3px;background:var(--c)}
 .tabs{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-start}
@@ -69,7 +71,7 @@ button.ghost{border-color:transparent;background:none;color:var(--muted);padding
 /* button height (33px), bottom-offset by the algo card's padding + border so it lines up with the buttons */
 .qcard{justify-self:start;height:33px;font:500 14px var(--body);padding:0 4px 0 10px;align-content:center;margin-bottom:15px}
 .qcard input[type=number]{padding:2px 6px}
-@media (max-width:760px){.algo-row{grid-template-columns:minmax(0,1fr)}.algo-card{grid-column:auto}.algo-card,.qcard{justify-self:center}.qcard{margin-bottom:0}}
+@media (max-width:900px){.algo-row{grid-template-columns:minmax(0,1fr)}.algo-card{grid-column:auto}.algo-card,.qcard{justify-self:center}.qcard{margin-bottom:0}}
 .algo-card .tabs{justify-content:center}
 #qfield .row{gap:6px}
 .sortby{font-size:16px;font-weight:500;margin:0 0 8px}
@@ -193,6 +195,19 @@ td.sel{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
 .src{font-size:14px;color:var(--muted)}
 .src b{font-family:var(--mono)}
 @media (prefers-reduced-motion:reduce){.seg{transition:none}}
+/* Tablet/mobile only (desktop untouched). Panels get a shrinkable column so wide tables scroll inside
+   their .scroll box instead of stretching the panel and the page; the answer box wraps under its table. */
+@media (max-width:1100px){
+  .panel{grid-template-columns:minmax(0,1fr)}
+  .pair{grid-template-columns:minmax(0,1fr)}
+  .answers{flex-wrap:wrap}
+}
+@media (max-width:640px){
+  h1{font-size:2rem}
+  .panel{padding:12px}
+  th,td{padding-inline:6px}
+  .gloss{grid-template-columns:minmax(0,1fr)}
+}
 </style>
 
 <main>
@@ -246,10 +261,10 @@ td.sel{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
     </div>
     <p class="step-note" id="note"></p>
     <div class="row">
-      <button id="first" type="button" aria-label="First step">⏮</button>
-      <button id="prev" type="button">◀ Prev</button>
-      <button id="next" type="button" class="primary">Next ▶</button>
-      <button id="last" type="button" aria-label="Last step">⏭</button>
+      <button id="first" type="button" aria-label="First step"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg></button>
+      <button id="prev" type="button"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>Prev</button>
+      <button id="next" type="button" class="primary">Next<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+      <button id="last" type="button" aria-label="Last step"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 4 10 8-10 8z"/><path d="M19 5v14"/></svg></button>
       <button id="play" type="button">Play</button>
     </div>
   </section>
@@ -298,6 +313,7 @@ td.sel{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
 </main>
 
 <script>
+const ICON=d=>`<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`,IC={left:ICON(`<path d="m15 18-6-6 6-6"/>`),right:ICON(`<path d="m9 18 6-6-6-6"/>`),x:ICON(`<path d="M18 6 6 18M6 6l12 12"/>`)};
 const QUIZ=[{id:"P1",at:0,bt:10,pr:3},{id:"P2",at:1,bt:5,pr:1},{id:"P3",at:3,bt:2,pr:4},{id:"P4",at:5,bt:8,pr:2},{id:"P5",at:7,bt:6,pr:5}];
 const ALGOS={
   fcfs:{name:"FCFS",full:"First-Come, First-Served",key:p=>`Arrival Time: ${p.at}`,
@@ -384,7 +400,7 @@ const fmt=x=>Number.isInteger(x)?String(x):x.toFixed(2).replace(/0$/,"");
 
 function renderProcs(){
   $("ptable").innerHTML=`<thead><tr><th>Process</th><th class="num"><span class="v v-at">Arrival (AT)</span></th><th class="num"><span class="v v-bt">Burst (BT)</span></th><th class="num"><span class="v v-pr">Priority</span></th><th></th></tr></thead><tbody>`+
-  procs.map((p,i)=>`<tr><td>${pid(p.id,i)}</td>${["at","bt","pr"].map(k=>`<td class="num"><input type="number" id="p${i}-${k}" min="${k==="bt"?1:0}" value="${p[k]}" data-i="${i}" data-k="${k}" aria-label="${p.id} ${k}"></td>`).join("")}<td>${procs.length>1?`<button class="ghost" data-del="${i}" type="button" aria-label="Remove ${p.id}">✕</button>`:""}</td></tr>`).join("")+"</tbody>";
+  procs.map((p,i)=>`<tr><td>${pid(p.id,i)}</td>${["at","bt","pr"].map(k=>`<td class="num"><input type="number" id="p${i}-${k}" min="${k==="bt"?1:0}" value="${p[k]}" data-i="${i}" data-k="${k}" aria-label="${p.id} ${k}"></td>`).join("")}<td>${procs.length>1?`<button class="ghost" data-del="${i}" type="button" aria-label="Remove ${p.id}">${IC.x}</button>`:""}</td></tr>`).join("")+"</tbody>";
   $("add").disabled=procs.length>=8;
 }
 function renderTabs(){
@@ -572,9 +588,9 @@ function renderScratch(){
     [...ticks].map(t=>`<span class="tick" style="left:${pct(t)}%">${t}</span>`).join("")+`</div>`;
   const sb=sSel!==null?L[sSel]:null;
   $("s-edit").innerHTML=sb?`${sb.p?pid(sb.p,pIndex(sb.p)):`<span class="pid">Idle</span>`}<span class="counter">t = ${sb.s}–${sb.e}</span>
-      <button type="button" data-act="left" ${sSel>0?"":"disabled"}>◀ Move</button><button type="button" data-act="minus" ${sb.d>1?"":"disabled"}>− 1 ms</button>
+      <button type="button" data-act="left" ${sSel>0?"":"disabled"}>${IC.left}Move</button><button type="button" data-act="minus" ${sb.d>1?"":"disabled"}>− 1 ms</button>
       <span class="score">${sb.d} ms</span><button type="button" data-act="plus">+ 1 ms</button>
-      <button type="button" data-act="right" ${sSel<L.length-1?"":"disabled"}>Move ▶</button><button type="button" data-act="del" class="danger">Delete bar</button>`
+      <button type="button" data-act="right" ${sSel<L.length-1?"":"disabled"}>Move${IC.right}</button><button type="button" data-act="del" class="danger">Delete bar</button>`
     :`<span class="formula">Select a bar to move, resize or delete it.</span>`;
   $("s-undo").disabled=!sStack().length;$("s-clear").disabled=!L.length;
   if(hadFocus&&sSel!==null){const el=document.querySelector(`#s-gantt .seg[data-k="${sSel}"]`);if(el)el.focus({preventScroll:true})}
