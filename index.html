@@ -1,0 +1,627 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>CPU Scheduling Reviewer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one column workbench. Tabs → process table beside step-through Gantt → answer table.
+   Palette, type and themes follow the Mock Exam Builder design tokens: paper-white page, ink-blue accent,
+   Bebas Neue display + Inter body, light by default with dark chosen via the toggle. */
+:root{
+  color-scheme:light;
+  --bg:#f6f6f3; --surface:#ffffff; --ink:#1b1d21; --muted:#686b72; --line:#e1e0d9;
+  --accent:#2f56d3; --accent-soft:#e8edfc; --good:#1c7a39; --good-soft:#e5f3e9; --bad:#b42318; --bad-soft:#fcebe9;
+  --on-p:#0b1016; --idle:#e7e6e0;
+  --v-st:#9a5b00; --v-ct:#b4400f; --v-at:#2b62c4; --v-bt:#6b3fc4; --v-tat:#1c7a39; --v-wt:#b3245f; --v-pr:#5c6b00;
+  --p1:#f39a6b; --p2:#6fa8ef; --p3:#6cc58a; --p4:#b993e6; --p5:#f0c94b; --p6:#ef8fae; --p7:#5cc9c9; --p8:#b5c46a;
+  --display:"Bebas Neue", "Arial Narrow", Impact, sans-serif;
+  --body:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --mono:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#111214; --surface:#1a1b1e; --ink:#ececea; --muted:#9a9da3; --line:#2d2f34;
+  --accent:#7d9bff; --accent-soft:#1f2849; --good:#5cc27a; --good-soft:#16281c; --bad:#ff8a7e; --bad-soft:#331a18; --idle:#2b2d32;
+  --v-st:#f0b43c; --v-ct:#ff9a6b; --v-at:#86a9ff; --v-bt:#b99bff; --v-tat:#5cc27a; --v-wt:#ff8ab5; --v-pr:#c8d96b;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 28px;font-variant-numeric:tabular-nums}
+main{max-width:1480px;margin:0 auto;display:grid;gap:12px}
+.credit{text-align:center;font-size:12px;color:var(--muted);padding:8px 0 4px}.credit a{color:inherit;text-decoration:underline;text-underline-offset:2px}.credit a:hover{color:var(--accent)}
+h1,h2{font-family:var(--display);font-weight:400;letter-spacing:.02em;text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:2.5rem}
+h2{font-size:1.375rem}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+p{margin:0}
+.pair{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:12px;align-items:stretch}
+.pair>.panel{align-content:start}
+.icon-btn{width:38px;height:38px;padding:0;display:grid;place-items:center;flex:none}
+@media (max-width:900px){.pair{grid-template-columns:minmax(0,1fr)}}
+.lede{color:var(--muted);max-width:65ch;margin-top:6px}
+.label{font:600 11px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:10px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.scroll{overflow-x:auto;min-width:0}
+table{border-collapse:collapse;width:auto;font-variant-numeric:tabular-nums}
+th,td{padding:5px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font:600 11px/1.2 var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+td.num,th.num{text-align:right;font-family:var(--mono)}
+input[type=number]{width:56px;font:14px var(--mono);padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:500 14px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:7px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+button.ghost{border-color:transparent;background:none;color:var(--muted);padding:4px 8px}
+.pid{display:inline-flex;align-items:center;gap:6px;font:600 13px var(--mono)}
+.dot{width:12px;height:12px;border-radius:3px;background:var(--c)}
+.tabs{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-start}
+.tgroup{display:grid;gap:4px;justify-items:center}
+.tlabel{font:600 11px/1 var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.bracket{justify-self:stretch;height:7px;border:2px solid var(--muted);border-bottom:none;border-radius:2px 2px 0 0}
+.tbtns{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button[aria-selected=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.how{display:grid;gap:12px}
+.sortby{font-size:16px;font-weight:500;margin:0 0 8px}
+.sortby .v{font-size:16px}
+.gloss{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px 18px;margin:0}
+.gloss div{min-width:0}
+.gloss dt{font-weight:600}
+.gloss dd{margin:2px 0 0;color:var(--muted);font-size:14px}
+.algo-abbr{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px;color:var(--muted)}
+.algo-abbr b{color:var(--ink);margin-right:4px}
+.how ol{margin:0;padding-left:20px;display:grid;gap:4px}
+.rule{background:var(--accent-soft);border-radius:8px;padding:8px 12px;font-size:14px}
+code,.mono{font-family:var(--mono);font-size:.92em}
+/* Gantt */
+.gantt-wrap{overflow-x:auto}
+.gantt{min-width:560px;position:relative;padding:0 24px 26px}
+.arrivals{position:relative;height:30px}
+.arr{position:absolute;transform:translateX(-50%);font:600 11px var(--mono);color:var(--muted);text-align:center;line-height:1.1}
+.arr::after{content:"";display:block;margin:2px auto 0;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--c)}
+.bar{position:relative;height:46px;background:repeating-linear-gradient(90deg,transparent 0 calc(var(--u) - 1px),var(--line) calc(var(--u) - 1px) var(--u));border-radius:6px;border:1px solid var(--line)}
+.seg{position:absolute;top:0;bottom:0;display:grid;place-items:center;background:var(--c);color:var(--on-p);font:600 13px var(--mono);border-right:2px solid var(--surface);transition:opacity .2s}
+.seg.idle{background:var(--idle);color:var(--muted);font-weight:400}
+.seg.now{box-shadow:inset 0 -4px 0 var(--ink)}
+.seg{cursor:pointer}
+.bar.has-sel .seg:not(.sel){opacity:.35}
+.seg.sel{box-shadow:inset 0 0 0 3px var(--ink);z-index:1}
+.tick{position:absolute;top:100%;transform:translateX(-50%);margin-top:4px;font:12px var(--mono);color:var(--ink)}
+.step-note{font-size:15px;min-height:2.6em}
+.step-note b{font-family:var(--mono)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:30px}
+.chip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 6px;font:13px var(--mono)}
+.chip.pick{border-color:var(--ink);background:var(--ink);color:var(--surface)}
+.chip small{color:inherit;opacity:.7}
+/* column gaps: wide after Process and before Status, narrow between AT, BT, Remaining */
+#rtt th,#rtt td{padding-inline:0}
+#rtt :is(th,td):nth-child(1){padding-left:14px;padding-right:10px}
+#rtt :is(th,td):last-child{padding-right:14px}
+#rtt :is(th,td):nth-child(3){padding-left:40px}
+#rtt :is(th,td):nth-child(4){padding-left:40px}
+#rtt :is(th,td):nth-child(5){padding-left:8px}
+#rtt :is(th,td):nth-child(6){padding-left:40px}
+#rtt tbody tr{transition:transform .45s ease}
+#rtt tr.run td{background:var(--accent-soft);font-weight:600}
+#rtt tr.off td{color:var(--muted)}
+#rtt tr.later td{filter:grayscale(1);opacity:.5}
+.meter{display:inline-block;height:8px;border-radius:4px;background:var(--idle);vertical-align:middle;margin-left:8px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--c)}
+@media (prefers-reduced-motion:reduce){#rtt tbody tr{transition:none}}
+.counter{font:600 13px var(--mono);color:var(--muted)}
+tr.hl td{background:var(--accent-soft)}
+td.pending{color:var(--muted)}
+.avg td{border-bottom:none;font-weight:600}
+.formula{color:var(--muted);font-size:13px}
+.practice input[type=number]{width:72px}
+input.ok{border-color:var(--good);background:var(--good-soft)}
+input.no{border-color:var(--bad);background:var(--bad-soft)}
+.score{font:600 14px var(--mono)}
+.answers{display:flex;gap:12px;align-items:stretch}
+.answers>.scroll{flex:none;overflow:visible}
+@media (max-width:640px){.answers{flex-wrap:wrap}.answers>.scroll{flex:1 1 100%;overflow-x:auto}}
+#practice{display:inline-flex;align-items:center;gap:8px}
+#practice .box{width:14px;height:14px;border:1.5px solid var(--muted);border-radius:3px}
+#practice[aria-pressed=true] .box{background:var(--accent);border-color:var(--accent)}
+/* .fit: text that wraps to its panel instead of widening it */
+.fit{width:0;min-width:100%}
+#rtable th,#rtable td{text-align:center}
+#ptable[data-sort=at] :is(th,td):nth-child(2){background:color-mix(in srgb,var(--v-at) 14%,transparent);border-bottom-color:color-mix(in srgb,var(--v-at) 45%,var(--line))}
+#ptable[data-sort=bt] :is(th,td):nth-child(3){background:color-mix(in srgb,var(--v-bt) 14%,transparent);border-bottom-color:color-mix(in srgb,var(--v-bt) 45%,var(--line))}
+#ptable[data-sort=pr] :is(th,td):nth-child(4){background:color-mix(in srgb,var(--v-pr) 14%,transparent);border-bottom-color:color-mix(in srgb,var(--v-pr) 45%,var(--line))}
+#sortnote{font-size:13px}
+#ptable :is(th,td).num{text-align:center}
+#ptable input{text-align:right}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.addbtn{display:inline-flex;gap:6px;align-items:center;border-radius:999px;padding:4px 12px 4px 8px;font:500 13px var(--mono)}
+.addbtn small{color:var(--muted);font-weight:400}
+.addbtn[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+#s-gantt{padding-right:52px}
+.plus{position:absolute;top:50%;transform:translate(8px,-50%);width:30px;height:30px;padding:0;border-radius:50%;display:grid;place-items:center;font:600 18px/1 var(--body);background:var(--accent);border-color:var(--accent);color:var(--surface);z-index:4}
+.plus:hover{filter:brightness(1.1)}
+#s-gantt .seg{cursor:grab;touch-action:none;user-select:none}
+#s-gantt .seg:active{cursor:grabbing}
+.grip{position:absolute;right:-3px;top:0;bottom:0;width:12px;cursor:ew-resize;z-index:2}
+.grip::after{content:"";position:absolute;right:5px;top:30%;bottom:30%;width:2px;border-radius:1px;background:currentColor;opacity:.5}
+.seg.bad{background-image:repeating-linear-gradient(45deg,transparent 0 6px,color-mix(in srgb,var(--bad) 40%,transparent) 6px 9px);box-shadow:inset 0 0 0 2px var(--bad)}
+.arrline{position:absolute;top:-12px;bottom:-6px;width:0;border-left:1px dashed var(--muted);pointer-events:none;z-index:3}
+.mtray{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:28px;margin-bottom:8px}
+.mtray>.label{flex-basis:100%;line-height:1.4}
+.mark-chip{display:inline-flex;gap:5px;align-items:center;border:1px dashed var(--c);border-radius:999px;padding:2px 10px 2px 6px;font:600 12px var(--mono);cursor:grab;touch-action:none;user-select:none;background:var(--surface)}
+.arr.mark{cursor:grab;touch-action:none;user-select:none;padding:0 3px;z-index:5;white-space:nowrap}
+.arr.mark:hover{color:var(--ink)}
+.bar .empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:13px;padding:0 8px;text-align:center}
+#s-warn{margin:0;padding-left:18px;color:var(--bad);font-size:14px;display:grid;gap:2px}
+button.danger{color:var(--bad)}
+#s-result:empty{display:none}
+#s-peek{touch-action:none;user-select:none}
+#s-peek.held{filter:brightness(.88)}
+#s-result.good{color:var(--good);font-weight:600}
+#s-result.off{color:var(--bad)}
+#pnote{color:var(--muted);font-size:14px}
+.sol{flex:1 1 300px;min-width:240px;border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--bg);display:grid;gap:8px;align-content:start}
+.sol.locked{align-content:center;text-align:center}
+.sol h3{margin:0;font:600 15px var(--body)}
+.eq{display:grid;gap:2px;font-size:18px;font-weight:500}
+.eq .hint{font-size:13px;color:var(--muted);font-weight:400}
+.v{--c:var(--ink);color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);border-radius:4px;padding:0 4px;font-weight:600;white-space:nowrap}
+.v-st{--c:var(--v-st)}.v-ct{--c:var(--v-ct)}.v-at{--c:var(--v-at)}.v-bt{--c:var(--v-bt)}.v-tat{--c:var(--v-tat)}.v-pr{--c:var(--v-pr)}.v-wt{--c:var(--v-wt)}
+th .v{background:none;padding:0}
+td[data-sol]{cursor:pointer}
+td.sel{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
+.src{font-size:14px;color:var(--muted)}
+.src b{font-family:var(--mono)}
+@media (prefers-reduced-motion:reduce){.seg{transition:none}}
+</style>
+
+<main>
+  <header class="top">
+    <h1>CSOPESY: CPU Scheduling Reviewer</h1>
+    <button id="theme" type="button" class="icon-btn" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
+  </header>
+
+  <section class="panel">
+    <h2>Terms and abbreviations</h2>
+    <div class="algo-abbr"><span><b>FCFS</b> First-Come, First-Served</span><span><b>SJF</b> Shortest Job First</span><span><b>NP Priority</b> Non-Preemptive Priority</span><span><b>SRTF</b> Shortest Remaining Time First</span><span><b>RR</b> Round Robin</span><span><b>ms</b> milliseconds, the unit for every time here</span></div>
+    <dl class="gloss"><div><dt><span class="v v-at">AT</span> · Arrival Time</dt><dd>When the process enters the ready queue and can start asking for the CPU.</dd></div><div><dt><span class="v v-bt">BT</span> · Burst Time</dt><dd>How much CPU time the process needs in total to finish.</dd></div><div><dt><span class="v v-st">Start</span> · Start Time</dt><dd>The first moment the process actually gets the CPU.</dd></div><div><dt><span class="v v-ct">CT</span> · Completion Time</dt><dd>The moment the process finishes. Read it off the end of its last bar in the Gantt chart.</dd></div><div><dt><span class="v v-tat">TAT</span> · Turnaround Time</dt><dd>Total time from arrival to finish. <span class="v v-tat">TAT</span> = <span class="v v-ct">CT</span> − <span class="v v-at">AT</span>.</dd></div><div><dt><span class="v v-wt">WT</span> · Waiting Time</dt><dd>Time spent waiting in the ready queue, not running. <span class="v v-wt">WT</span> = <span class="v v-tat">TAT</span> − <span class="v v-bt">BT</span>.</dd></div><div><dt><span class="v v-pr">Priority</span></dt><dd>A rank given to each process. Here 1 = highest, so the lowest number goes first.</dd></div><div><dt><span class="v v-bt">Remaining time</span></dt><dd>How much of the burst a process still needs. It shrinks each time the process runs.</dd></div><div><dt><span class="v v-pr">q</span> · Time Quantum</dt><dd>The longest a process may run in one turn under Round Robin. These quizzes use q = 2 ms.</dd></div><div><dt>Ready queue</dt><dd>The processes that have arrived and are waiting for the CPU.</dd></div><div><dt>Gantt chart</dt><dd>A timeline bar showing which process runs at each moment. Bar length = time spent running.</dd></div><div><dt>Preemptive vs non-preemptive</dt><dd>Preemptive: a running process can be interrupted. Non-preemptive: once a process starts, it runs to completion.</dd></div></dl>
+  </section>
+
+  <section class="panel">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="how" id="how"></div>
+  </section>
+
+  <div class="row" style="justify-content:center"><button id="practice" type="button" aria-pressed="false"><span class="box" aria-hidden="true"></span>Practice mode</button></div>
+
+  <div class="pair">
+  <section class="panel">
+    <div class="row fit" style="justify-content:space-between">
+      <h2>Process data set</h2>
+      <div class="row">
+        <button id="add" type="button">Add process</button>
+        <button id="reset" type="button" class="ghost">Reset to quiz data</button>
+      </div>
+    </div>
+    <div class="scroll"><table id="ptable"></table></div>
+    <p class="fit" id="sortnote"></p>
+  </section>
+
+  <section class="panel" id="viz">
+    <div class="row" style="justify-content:space-between">
+      <h2>Gantt chart, step by step</h2>
+    </div>
+    <div class="gantt-wrap"><div class="gantt" id="gantt"></div></div>
+    <div>
+      <span class="label">Ready queue at this decision · click any bar to see why it runs there</span>
+      <div class="chips" id="queue"></div>
+    </div>
+    <div id="srtf" hidden>
+      <span class="label" id="rtt-label"></span>
+      <div class="scroll"><table id="rtt"></table></div>
+    </div>
+    <p class="step-note" id="note"></p>
+    <div class="row">
+      <button id="first" type="button" aria-label="First step">⏮</button>
+      <button id="prev" type="button">◀ Prev</button>
+      <button id="next" type="button" class="primary">Next ▶</button>
+      <button id="last" type="button" aria-label="Last step">⏭</button>
+      <button id="play" type="button">Play</button>
+    </div>
+  </section>
+
+  <section class="panel" id="scratch" hidden>
+    <div class="row" style="justify-content:space-between">
+      <h2>Your Gantt chart</h2>
+    </div>
+    <div class="mtray" id="s-tray"></div>
+    <div class="gantt-wrap"><div class="gantt" id="s-gantt"></div></div>
+    <div>
+      <span class="label">Next process · pick one, then press + on the chart to add a bar, drag its edge to resize</span>
+      <div class="chips" id="s-add" style="margin-top:6px"></div>
+    </div>
+    <div class="row" id="s-edit"></div>
+    <ul id="s-warn" hidden></ul>
+    <div class="row">
+      <button id="s-peek" type="button" class="primary">Quick compare</button>
+      <button id="s-undo" type="button">Undo</button>
+      <button id="s-clear" type="button" class="ghost">Clear chart</button>
+    </div>
+    <p id="s-result" aria-live="polite"></p>
+  </section>
+  </div>
+
+  <section class="panel" id="answer-panel">
+    <div class="row fit" style="justify-content:space-between">
+      <h2>Answer table</h2>
+    </div>
+    <div class="answers"><div class="scroll"><table id="rtable"></table></div><aside class="sol" id="sol" aria-live="polite"></aside></div>
+    <div class="row" id="pbar" hidden>
+      <button id="check" type="button" class="primary">Check answers</button>
+      <button id="clear" type="button">Clear</button>
+      <span class="score" id="score"></span>
+    </div>
+  </section>
+<footer class="credit">Made by <a href="https://github.com/aq7zo" target="_blank" rel="noopener">Enzo Campo</a></footer>
+</main>
+
+<script>
+const QUIZ=[{id:"P1",at:0,bt:10,pr:3},{id:"P2",at:1,bt:5,pr:1},{id:"P3",at:3,bt:2,pr:4},{id:"P4",at:5,bt:8,pr:2},{id:"P5",at:7,bt:6,pr:5}];
+const ALGOS={
+  fcfs:{name:"FCFS",full:"First-Come, First-Served",key:p=>`Arrival Time: ${p.at}`,
+    sort:"<span class=\"v v-at\">earliest arrival time (AT)</span>",steps:["Sort the processes by <span class=\"v v-at\">earliest arrival time</span>.","Run them in that order. Each one runs to completion.","Each process starts when the one before it ends.","Compute <span class=\"v v-tat\">TAT</span> = <span class=\"v v-ct\">CT</span> − <span class=\"v v-at\">AT</span> and <span class=\"v v-wt\">WT</span> = <span class=\"v v-tat\">TAT</span> − <span class=\"v v-bt\">BT</span>."],
+    rule:"Ties on arrival time go to the lower process number."},
+  sjf:{name:"SJF",full:"Non-Preemptive Shortest Job First",key:p=>`Burst Time: ${p.bt}`,
+    sort:"<span class=\"v v-bt\">smallest burst time (BT)</span>",steps:["The process with the <span class=\"v v-at\">earliest arrival time</span> goes first in the Gantt chart.","When it finishes, pick the <span class=\"v v-bt\">smallest burst time</span> among the processes that have arrived.","Repeat until every process is done.","Compute <span class=\"v v-tat\">TAT</span> = <span class=\"v v-ct\">CT</span> − <span class=\"v v-at\">AT</span> and <span class=\"v v-wt\">WT</span> = <span class=\"v v-tat\">TAT</span> − <span class=\"v v-bt\">BT</span>."],
+    rule:"Ties on burst time go to the earlier arrival. A long job already running is never interrupted."},
+  prio:{name:"NP Priority",full:"Non-Preemptive Priority",key:p=>`Priority: ${p.pr}`,
+    sort:"<span class=\"v v-pr\">lowest priority number</span>",steps:["The process with the <span class=\"v v-at\">earliest arrival time</span> goes first in the Gantt chart.","When it finishes, pick the <span class=\"v v-pr\">lowest priority number</span> (1 = highest) among the processes that have arrived.","Repeat until every process is done.","Compute <span class=\"v v-tat\">TAT</span> = <span class=\"v v-ct\">CT</span> − <span class=\"v v-at\">AT</span> and <span class=\"v v-wt\">WT</span> = <span class=\"v v-tat\">TAT</span> − <span class=\"v v-bt\">BT</span>."],
+    rule:"Ties on priority go to the earlier arrival. Priority only matters when the CPU becomes free."},
+  srtf:{name:"SRTF",full:"Preemptive Shortest Remaining Time First",key:p=>`Remaining Burst Time: ${p.rem}`,
+    sort:"<span class=\"v v-bt\">smallest remaining time</span>",steps:["The process with the <span class=\"v v-at\">earliest arrival time</span> goes first in the Gantt chart.","Every time a new process arrives, compare <span class=\"v v-bt\">remaining times</span>. The smaller one runs and the other waits.","When a process finishes, pick the <span class=\"v v-bt\">smallest remaining time</span> among the processes that have arrived.","Compute <span class=\"v v-tat\">TAT</span> = <span class=\"v v-ct\">CT</span> − <span class=\"v v-at\">AT</span> and <span class=\"v v-wt\">WT</span> = <span class=\"v v-tat\">TAT</span> − <span class=\"v v-bt\">BT</span>."],
+    rule:"Ties on remaining time: the running process keeps the CPU, otherwise earlier arrival wins. A process can have several run slices; Start is the first one."},
+  rr:{name:"Round Robin",full:"Round Robin",key:p=>`Remaining Burst Time: ${p.rem}`,
+    sort:"<span class=\"v v-at\">arrival order</span> (first in, first out), each turn capped at one <span class=\"v v-pr\">time quantum</span>",steps:["Line the processes up in a queue by <span class=\"v v-at\">earliest arrival time</span>.","The front process runs for up to one <span class=\"v v-pr\">time quantum</span>.","New arrivals join the back first. Then the process that just ran goes behind them if it is unfinished.","Compute <span class=\"v v-tat\">TAT</span> = <span class=\"v v-ct\">CT</span> − <span class=\"v v-at\">AT</span> and <span class=\"v v-wt\">WT</span> = <span class=\"v v-tat\">TAT</span> − <span class=\"v v-bt\">BT</span>."],
+    rule:"Quiz convention: new arrivals enter the queue before the preempted process is re-queued."}
+};
+let procs=JSON.parse(JSON.stringify(QUIZ)),algo="fcfs",q=2,step=0,timer=null,result;
+try{const s=localStorage.getItem("cpu-algo");if(s&&ALGOS[s])algo=s}catch(e){}
+
+/* ---------- simulation ---------- */
+function simulate(ps,algo,q){
+  const P=ps.map((p,i)=>({...p,i,rem:p.bt,first:null,ct:null,runs:[]}));
+  const n=P.length,steps=[];let t=0,done=0;
+  const snap=list=>list.map(p=>({id:p.id,i:p.i,at:p.at,bt:p.bt,pr:p.pr,rem:p.rem}));
+  const run=(p,s,e,note,queue,extra={})=>{if(p.first===null)p.first=s;p.runs.push([s,e]);p.rem-=e-s;steps.push({p:p.id,i:p.i,s,e,note,queue,pick:p.id,...extra});if(p.rem===0){p.ct=e;done++}};
+  const idle=(s,e)=>steps.push({p:null,s,e,note:`No process has arrived yet, so the CPU sits <b>idle</b> from ${s} to ${e}.`,queue:[]});
+  const nextAt=()=>Math.min(...P.filter(p=>p.rem>0&&p.at>t).map(p=>p.at));
+  if(n===0)return{P,steps};
+
+  if(algo==="rr"){
+    const order=[...P].sort((a,b)=>a.at-b.at||a.i-b.i);let k=0;const Q=[];
+    const admit=u=>{const got=[];while(k<n&&order[k].at<=u){Q.push(order[k]);got.push(order[k++].id)}return got};
+    admit(0);
+    while(done<n){
+      if(!Q.length){const nx=order[k].at;idle(t,nx);t=nx;admit(t);continue}
+      const queue=snap(Q),p=Q.shift(),len=Math.min(q,p.rem),s=t;t+=len;
+      const arrived=admit(t),left=p.rem-len;
+      let note=`t = ${s}: <b>${p.id}</b> is at the front of the queue and runs ${len} ms (${s}–${t}).`;
+      if(arrived.length)note+=` Arrived meanwhile: <b>${arrived.join(", ")}</b> → back of the queue.`;
+      note+=left>0?` ${p.id} still needs ${left} ms, so it goes to the back${arrived.length?" after them":""}.`:` ${p.id} is finished: CT = ${t}.`;
+      run(p,s,t,note,queue);
+      if(left>0)Q.push(p);
+    }
+    return{P,steps};
+  }
+
+  if(algo==="srtf"){
+    let cur=null;
+    while(done<n){
+      const ready=P.filter(p=>p.rem>0&&p.at<=t);
+      if(!ready.length){const nx=nextAt();idle(t,nx);t=nx;cur=null;continue}
+      ready.sort((a,b)=>a.rem-b.rem||(a===cur?-1:b===cur?1:0)||a.at-b.at||a.i-b.i);
+      const p=ready[0],end=Math.min(t+p.rem,nextAt()),queue=snap(ready);
+      const newcomers=P.filter(x=>x.at===t&&x.rem>0).map(x=>x.id);
+      let note=`t = ${t}: `+(newcomers.length?`<b>${newcomers.join(", ")}</b> arrives. `:"");
+      if(cur&&cur!==p&&cur.rem>0)note+=`<b>${p.id}</b> (${p.rem} left) is shorter than ${cur.id} (${cur.rem} left), so it <b>preempts</b> ${cur.id}.`;
+      else if(cur===p)note+=`<b>${p.id}</b> still has the least remaining time (${p.rem}), so it keeps the CPU.`;
+      else note+=`Smallest remaining time is <b>${p.id}</b> (${p.rem} ms).`;
+      note+=end===t+p.rem?` It runs to completion: CT = ${end}.`:` It runs until the next arrival at t = ${end}.`;
+      run(p,t,end,note,queue);t=end;cur=p;
+    }
+    return{P,steps};
+  }
+
+  const cmp={fcfs:(a,b)=>a.at-b.at||a.i-b.i,sjf:(a,b)=>a.bt-b.bt||a.at-b.at||a.i-b.i,prio:(a,b)=>a.pr-b.pr||a.at-b.at||a.i-b.i}[algo];
+  const why={fcfs:p=>`it arrived first (AT ${p.at})`,sjf:p=>`it has the shortest burst (BT ${p.bt})`,prio:p=>`it has the highest priority (Pr ${p.pr})`}[algo];
+  while(done<n){
+    const ready=P.filter(p=>p.rem>0&&p.at<=t);
+    if(!ready.length){const nx=nextAt();idle(t,nx);t=nx;continue}
+    ready.sort(cmp);const p=ready[0],s=t;t+=p.rem;
+    const note=`t = ${s}: `+(ready.length>1?`${ready.length} processes are waiting. Pick <b>${p.id}</b> because ${why(p)}.`:`Only <b>${p.id}</b> is ready, so it runs.`)+` Non-preemptive, so it runs all ${p.bt} ms: CT = ${t}.`;
+    run(p,s,t,note,snap(ready));
+  }
+  return{P,steps};
+}
+
+/* ---------- render ---------- */
+const $=id=>document.getElementById(id);
+const col=i=>`var(--p${i%8+1})`;
+const pid=(id,i)=>`<span class="pid"><span class="dot" style="--c:${col(i)}"></span>${id}</span>`;
+const fmt=x=>Number.isInteger(x)?String(x):x.toFixed(2).replace(/0$/,"");
+
+function renderProcs(){
+  $("ptable").innerHTML=`<thead><tr><th>Process</th><th class="num"><span class="v v-at">Arrival (AT)</span></th><th class="num"><span class="v v-bt">Burst (BT)</span></th><th class="num"><span class="v v-pr">Priority</span></th><th></th></tr></thead><tbody>`+
+  procs.map((p,i)=>`<tr><td>${pid(p.id,i)}</td>${["at","bt","pr"].map(k=>`<td class="num"><input type="number" id="p${i}-${k}" min="${k==="bt"?1:0}" value="${p[k]}" data-i="${i}" data-k="${k}" aria-label="${p.id} ${k}"></td>`).join("")}<td>${procs.length>1?`<button class="ghost" data-del="${i}" type="button" aria-label="Remove ${p.id}">✕</button>`:""}</td></tr>`).join("")+"</tbody>";
+  $("add").disabled=procs.length>=8;
+}
+function renderTabs(){
+  const btn=k=>`<button role="tab" type="button" aria-selected="${k===algo}" data-algo="${k}">${ALGOS[k].name}</button>`;
+  const group=(label,keys)=>`<div class="tgroup" role="group" aria-label="${label}"><span class="tlabel">${label}</span><span class="bracket" aria-hidden="true"></span><div class="tbtns">${keys.map(btn).join("")}</div></div>`;
+  $("tabs").innerHTML=group("Non-preemptive",["fcfs","sjf","prio"])+group("Preemptive",["srtf","rr"])+
+    (algo==="rr"?`<label class="row" style="gap:6px;align-self:flex-end;padding-bottom:6px">Quantum <input type="number" id="quantum" min="1" value="${q}"> ms</label>`:"");
+  const a=ALGOS[algo];
+  const sk={fcfs:"at",sjf:"bt",prio:"pr",srtf:"bt",rr:"at"}[algo];
+  $("ptable").dataset.sort=sk;
+  $("sortnote").innerHTML=`The highlighted column, <span class="v v-${sk}">${{at:"Arrival (AT)",bt:"Burst (BT)",pr:"Priority"}[sk]}</span>, is what ${a.name} uses to sequence the processes${algo==="srtf"?" (as remaining time)":algo==="rr"?" (queue order)":""}.`;
+  $("how").innerHTML=`<div><span class="label">How to answer</span><h2 style="margin:4px 0 6px">${a.full}${algo==="rr"?` (q = ${q} ms)`:""}</h2><p class="sortby">Sorted by: ${a.sort}</p><ol>${a.steps.map(s=>`<li>${s}</li>`).join("")}</ol><div class="rule" style="margin-top:10px"><b>Tie-breaks:</b> ${a.rule}</div></div>`;
+}
+function recompute(){sel=null;result=simulate(procs,algo,q);step=Math.min(step,Math.max(0,result.steps.length-1));renderViz();renderResults()}
+
+let sel=null; // index of the first step in the clicked Gantt bar, or null to follow the stepper
+function renderViz(){
+  const {steps}=result;if(!steps.length)return;
+  const total=steps[steps.length-1].e,pct=x=>x/total*100;
+  // merge consecutive slices of the same process for the drawn bar; a..b = step indices inside it
+  const merged=[];steps.slice(0,step+1).forEach((s,k)=>{const m=merged[merged.length-1];if(m&&m.p===s.p&&m.e===s.s){m.e=s.e;m.b=k}else merged.push({...s,a:k,b:k})});
+  const picked=sel===null?null:merged.find(m=>m.a===sel)||null;if(!picked)sel=null;
+  const ticks=new Set([0,...merged.map(m=>m.e)]);
+  const arrivals={};procs.forEach((p,i)=>(arrivals[p.at]??=[]).push({id:p.id,i}));
+  $("gantt").innerHTML=
+    `<div class="arrivals">${Object.entries(arrivals).map(([t,list])=>`<span class="arr" style="left:${pct(+t)}%;--c:${col(list[0].i)}">${list.map(x=>x.id).join(" ")}</span>`).join("")}</div>`+
+    `<div class="bar${picked?" has-sel":""}" style="--u:${100/total}%">${merged.map((m,j)=>`<div class="seg${m.p?"":" idle"}${!picked&&j===merged.length-1?" now":""}${m===picked?" sel":""}" role="button" tabindex="0" data-a="${m.a}" aria-label="${m.p||"idle"} ${m.s} to ${m.e} ms" style="left:${pct(m.s)}%;width:${pct(m.e-m.s)}%;--c:${m.p?col(m.i):"none"}">${m.p||"idle"}</div>`).join("")}`+
+    [...ticks].map(t=>`<span class="tick" style="left:${pct(t)}%">${t}</span>`).join("")+`</div>`;
+  const at=picked?picked.a:step,cur=steps[at],keyFn=ALGOS[algo].key;
+  renderSrtf(at);
+  $("queue").innerHTML=cur.queue.length?cur.queue.map(p=>`<span class="chip${p.id===cur.pick?" pick":""}"><span class="dot" style="--c:${col(p.i)}"></span>${p.id} <small>${keyFn(p)}</small></span>`).join(algo==="rr"?"<span class='counter'>→</span>":""):`<span class="formula">empty</span>`;
+  if(picked){
+    const j=merged.indexOf(picked),prev=merged[j-1];
+    const head=`<b>${picked.p||"Idle"}</b> runs t = ${picked.s}–${picked.e} ms, bar ${j+1} of ${merged.length}`+(prev?`, right after ${prev.p||"idle time"}.`:`, the first on the chart.`);
+    $("note").innerHTML=head+"<br>"+steps.slice(picked.a,picked.b+1).map(x=>x.note).join("<br>");
+  }else{
+    $("note").innerHTML=cur.note;
+  }
+  $("prev").disabled=$("first").disabled=step===0;
+  $("next").disabled=$("last").disabled=step===steps.length-1;
+  highlightRow(cur.p);
+}
+
+function renderSrtf(at){
+  const rr=algo==="rr";
+  $("srtf").hidden=!rr&&algo!=="srtf";if($("srtf").hidden)return;
+  $("rtt-label").textContent=rr?"Ready queue, front to back · re-ordered after every time slice":"Remaining time, least to most · re-sorted at every decision";
+  const steps=result.steps,cur=steps[at],t=cur.s;
+  const used={};steps.slice(0,at).forEach(x=>{if(x.p)used[x.p]=(used[x.p]||0)+x.e-x.s});
+  const list=procs.map((p,i)=>{const rem=p.bt-(used[p.id]||0);
+    const state=rem===0?"done":p.at>t?"later":p.id===cur.p?"run":"wait";return{...p,i,rem,state}});
+  const order={run:0,wait:0,later:1,done:2},maxBt=Math.max(...procs.map(p=>p.bt));
+  const qpos={};cur.queue.forEach((x,k)=>qpos[x.id]=k);
+  list.sort((a,b)=>order[a.state]-order[b.state]||(rr&&a.state!=="later"&&a.state!=="done"?qpos[a.id]-qpos[b.id]:0)||a.rem-b.rem||(a.state==="run"?-1:b.state==="run"?1:0)||a.at-b.at);
+  const ctOf=id=>{const r=result.P.find(x=>x.id===id);return r?r.ct:""};
+  const label=rr?{run:`Runs now for ${Math.min(q,cur.e-cur.s)} ms`,wait:"Waiting in queue",later:"",done:""}:{run:"Runs now",wait:"Waiting",later:"",done:""};
+  // FLIP: remember old row positions so rows slide into their new order
+  const before={};document.querySelectorAll("#rtt tbody tr").forEach(tr=>before[tr.dataset.id]=tr.getBoundingClientRect().top);
+  $("rtt").innerHTML=`<thead><tr><th class="num">#</th><th>Process</th><th class="num"><span class="v v-at">AT</span></th><th class="num"><span class="v v-bt">BT</span></th><th>Remaining at t = ${t}</th><th>Status</th></tr></thead><tbody>`+
+    list.map((p,k)=>`<tr data-id="${p.id}" class="${p.state==="run"?"run":p.state==="wait"?"":p.state==="later"?"off later":"off"}"><td class="num">${p.state==="run"||p.state==="wait"?k+1:"–"}</td><td>${pid(p.id,p.i)}</td><td class="num">${p.at}</td><td class="num">${p.bt}</td>
+      <td class="num" style="text-align:left"><span class="v v-bt">${p.rem}</span><span class="meter" style="--c:${col(p.i)};width:${p.bt/maxBt*140}px"><i style="width:${p.rem/p.bt*100}%"></i></span></td>
+      <td>${p.state==="later"?`Arrives at t = ${p.at}`:p.state==="done"?`Done at t = ${ctOf(p.id)}`:label[p.state]}</td></tr>`).join("")+"</tbody>";
+  document.querySelectorAll("#rtt tbody tr").forEach(tr=>{const old=before[tr.dataset.id];if(old===undefined)return;
+    const dy=old-tr.getBoundingClientRect().top;if(!dy)return;
+    tr.style.transition="none";tr.style.transform=`translateY(${dy}px)`;tr.getBoundingClientRect();tr.style.transition="";tr.style.transform=""});
+}
+
+let rows=[],checked=false,selKey="P1:tat";
+const V=(k,txt)=>`<span class="v v-${k}">${txt}</span>`;
+function solution(key){
+  const [id,k]=key.split(":"),n=rows.length;
+  if(id==="avg"){
+    const lab=k.toUpperCase(),sum=rows.reduce((a,r)=>a+r[k],0);
+    return `<h3>Average ${lab}</h3><div class="eq"><div>Avg ${V(k,lab)} = (${rows.map(r=>V(k,lab+"<sub>"+r.id+"</sub>")).join(" + ")}) ÷ ${n}</div>
+      <div>= (${rows.map(r=>V(k,r[k])).join(" + ")}) ÷ ${n}</div><div>= ${V(k,sum)} ÷ ${n} = ${V(k,fmt(+(sum/n).toFixed(2)))} ms</div></div>`;
+  }
+  const r=rows.find(x=>x.id===id);if(!r)return "";
+  if(k==="start")return `<h3>${id} · Start time</h3><div class="eq"><div>${V("st","Start")} = ${V("st",r.first)} ms</div><div class="hint">First moment ${id} gets the CPU</div></div>`;
+  if(k==="ct")return `<h3>${id} · Completion time</h3><div class="eq"><div>${V("ct","CT")} = ${V("ct",r.ct)} ms</div><div class="hint">End of ${id}'s last slice on the Gantt chart</div></div>`;
+  if(k==="tat")return `<h3>${id} · Turnaround time</h3><div class="eq"><div>${V("tat","TAT")} = ${V("ct","CT")} − ${V("at","AT")}</div>
+      <div>= ${V("ct",r.ct)} − ${V("at",r.at)}</div><div>= ${V("tat",r.tat)} ms</div></div>`;
+  return `<h3>${id} · Waiting time</h3><div class="eq"><div>${V("wt","WT")} = ${V("tat","TAT")} − ${V("bt","BT")}</div>
+      <div>= ${V("tat",r.tat)} − ${V("bt",r.bt)}</div><div>= ${V("wt",r.wt)} ms</div></div>`;
+}
+function showSol(key){
+  selKey=key;
+  document.querySelectorAll("#rtable td.sel").forEach(td=>td.classList.remove("sel"));
+  const td=document.querySelector(`#rtable td[data-sol="${key}"]`);if(td)td.classList.add("sel");
+  const locked=$("practice").ariaPressed==="true"&&!checked;
+  $("sol").classList.toggle("locked",locked);
+  $("sol").innerHTML=locked?`<p class="src">Check your answers to see the working.</p>`:solution(key)||`<p class="src">Select a cell to see how it is computed.</p>`;
+}
+function renderResults(){
+  const {P}=result,practice=$("practice").ariaPressed==="true";checked=false;
+  $("pbar").hidden=!practice;$("score").textContent="";
+  rows=P.map(p=>({...p,tat:p.ct-p.at,wt:p.ct-p.at-p.bt}));
+  const avg=k=>rows.reduce((a,r)=>a+r[k],0)/rows.length;
+  const multi=algo==="srtf"||algo==="rr";
+  const cell=(ans,id,key)=>practice?`<td class="num practice" data-sol="${key}"><input type="number" step="any" id="${id}" data-ans="${ans}" aria-label="${id}"></td>`:`<td class="num" data-sol="${key}" tabindex="0">${fmt(ans)}</td>`;
+  $("rtable").innerHTML=`<thead><tr><th>Process</th><th class="num">${V("st","Start")}</th><th class="num">${V("ct","CT")}</th><th class="num">${V("tat","TAT")}</th><th class="num">${V("wt","WT")}</th>${multi&&!practice?"<th>Ran during</th>":""}</tr></thead><tbody>`+
+    rows.map(r=>`<tr data-id="${r.id}"><td>${pid(r.id,r.i)}</td>${cell(r.first,`a-${r.id}-start`,r.id+":start")}${cell(r.ct,`a-${r.id}-ct`,r.id+":ct")}${cell(r.tat,`a-${r.id}-tat`,r.id+":tat")}${cell(r.wt,`a-${r.id}-wt`,r.id+":wt")}${multi&&!practice?`<td class="mono formula">${r.runs.map(x=>x.join("–")).join(", ")}</td>`:""}</tr>`).join("")+
+    `<tr class="avg"><td>Average</td><td></td><td></td>${cell(+avg("tat").toFixed(2),"a-avg-tat","avg:tat")}${cell(+avg("wt").toFixed(2),"a-avg-wt","avg:wt")}${multi&&!practice?"<td></td>":""}</tr></tbody>`;
+  $("viz").hidden=practice;$("scratch").hidden=!practice;renderScratch();document.querySelector("main").classList.toggle("practicing",practice);
+  if(!document.querySelector(`#rtable td[data-sol="${selKey}"]`))selKey=(rows[0]?rows[0].id:"avg")+":tat";
+  showSol(selKey);
+  highlightRow();
+}
+function highlightRow(p){
+  if(!result||!result.steps.length)return;
+  if(p===undefined)p=(sel===null?result.steps[step]:result.steps[sel]||{}).p;
+  document.querySelectorAll("#rtable tr[data-id]").forEach(tr=>tr.classList.toggle("hl",$("practice").ariaPressed!=="true"&&tr.dataset.id===p));
+}
+
+/* ---------- practice: the user's own Gantt chart ---------- */
+const scratch={},sHist={};let sSel=null,drag=null,sNext=undefined,sChecked=false,sPeek=false;const sMarks={};
+const sBars=()=>scratch[algo]??=[];
+const sStack=()=>sHist[algo]??=[];
+const sLayout=()=>{let t=0;return sBars().map(b=>{const s=t;t+=b.d;return{...b,s,e:t}})};
+const sPush=()=>{sChecked=false;const h=sStack();h.push(JSON.stringify(sBars()));if(h.length>80)h.shift()};
+const sUsed=()=>{const u={};sBars().forEach(b=>{if(b.p)u[b.p]=(u[b.p]||0)+b.d});return u};
+const pIndex=id=>procs.findIndex(p=>p.id===id);
+function sAdd(p){
+  if(p&&pIndex(p)<0)return;const d=1; // the user stretches it to the right length
+  sPush();sBars().push({p,d});sSel=sBars().length-1;$("s-result").textContent="";renderScratch();
+}
+function sAct(a){
+  const B=sBars(),k=sSel;if(k===null||!B[k])return;
+  const ok={del:true,plus:true,minus:B[k].d>1,left:k>0,right:k<B.length-1}[a];if(!ok)return;
+  sPush();
+  if(a==="del"){B.splice(k,1);sSel=B.length?Math.min(k,B.length-1):null}
+  else if(a==="plus")B[k].d++;
+  else if(a==="minus")B[k].d--;
+  else{const j=a==="left"?k-1:k+1;[B[j],B[k]]=[B[k],B[j]];sSel=j}
+  $("s-result").textContent="";renderScratch();
+}
+function renderScratch(){
+  if(!result||$("scratch").hidden)return;
+  const hadFocus=$("s-gantt").contains(document.activeElement);
+  if(sPeek){
+    const sol=[];for(const x of result.steps){const l=sol[sol.length-1];if(l&&l.p===x.p&&l.e===x.s)l.e=x.e;else sol.push({p:x.p,i:x.i,s:x.s,e:x.e})}
+    const T=Math.max(sol.length?sol[sol.length-1].e:1,sLayout().reduce((a,b)=>a+b.d,0),1),P=x=>x/T*100;
+    const arr={};procs.forEach((p,i)=>(arr[p.at]??=[]).push({id:p.id,i}));
+    $("s-gantt").innerHTML=`<div class="arrivals" style="height:36px">${Object.entries(arr).map(([t,l])=>`<span class="arr" style="left:${P(+t)}%;bottom:6px;--c:${col(l[0].i)}">${l.map(x=>x.id).join(" ")}</span>`).join("")}</div>`+
+      `<div class="bar peeking" style="--u:${100/T}%">`+Object.keys(arr).map(t=>`<span class="arrline" style="left:${P(+t)}%"></span>`).join("")+
+      sol.map(m=>`<div class="seg${m.p?"":" idle"}" style="left:${P(m.s)}%;width:${P(m.e-m.s)}%;--c:${m.p?col(m.i):"none"}">${m.e-m.s>1?(m.p||"idle"):""}</div>`).join("")+
+      [...new Set([0,...sol.map(m=>m.e)])].map(t=>`<span class="tick" style="left:${P(t)}%">${t}</span>`).join("")+`</div>`;
+    return;
+  }
+  const L=sLayout(),end=L.length?L[L.length-1].e:0,used=sUsed();
+  const solEnd=result.steps.length?result.steps[result.steps.length-1].e:0;
+  const total=Math.max(solEnd,end,1),pct=x=>x/total*100;
+  if(sNext===undefined||(sNext&&pIndex(sNext)<0))sNext=procs[0]?procs[0].id:"";
+  $("s-add").innerHTML=procs.map((p,i)=>`<button type="button" class="addbtn" aria-pressed="${sNext===p.id}" data-add="${p.id}"><span class="dot" style="--c:${col(i)}"></span>${p.id}</button>`).join("")+
+    `<button type="button" class="addbtn" aria-pressed="${sNext===""}" data-add=""><span class="dot" style="--c:var(--idle)"></span>Idle</button>`;
+  const warns=[],bad=new Set();
+  if(sChecked){
+  L.forEach((b,k)=>{if(!b.p)return;const p=procs.find(x=>x.id===b.p);if(!p)return;
+    if(b.s<p.at){warns.push(`${b.p} starts at t = ${b.s}, but it only arrives at t = ${p.at}.`);bad.add(k)}
+    if(algo==="rr"&&b.d>q){warns.push(`${b.p} runs ${b.d} ms in one turn at t = ${b.s}. The quantum is ${q} ms.`);bad.add(k)}});
+  procs.forEach(p=>{const u=used[p.id]||0;if(u>p.bt){warns.push(`${p.id} is on the chart for ${u} ms, but its burst time is ${p.bt} ms.`);L.forEach((b,k)=>{if(b.p===p.id)bad.add(k)})}});
+  procs.forEach(p=>{const m=sMarks[p.id];if(m===undefined)warns.push(`${p.id}'s arrival marker is not on the chart yet.`);else if(m!==p.at)warns.push(`${p.id}'s arrival marker is at t = ${m}, but ${p.id} arrives at t = ${p.at}.`)});
+  }
+  $("s-warn").innerHTML=warns.map(w=>`<li>${w}</li>`).join("");$("s-warn").hidden=!warns.length;
+  const placed=procs.map((p,i)=>({id:p.id,i,t:sMarks[p.id]})).filter(m=>m.t!==undefined).sort((a,b)=>a.t-b.t||a.i-b.i);
+  const tray=procs.map((p,i)=>({id:p.id,i})).filter(m=>sMarks[m.id]===undefined);
+  const seen={};placed.forEach(m=>{m.k=seen[m.t]=(seen[m.t]??-1)+1});
+  const rows=Math.max(1,...placed.map(m=>m.k+1));
+  const ticks=new Set([0,...L.map(b=>b.e)]);
+  $("s-tray").innerHTML=tray.length?`<span class="label">Arrival markers · drag each onto its arrival time, or back here to remove it</span>`+tray.map(m=>`<span class="mark-chip" data-mark="${m.id}" style="--c:${col(m.i)}"><span class="dot" style="--c:${col(m.i)}"></span>${m.id}</span>`).join(""):`<span class="label">All arrival markers placed · drag one back here to remove it</span>`;
+  $("s-gantt").innerHTML=
+    `<div class="arrivals" style="height:${20+rows*16}px">${placed.map(m=>`<span class="arr mark" data-mark="${m.id}" title="${m.id} at t = ${m.t}" style="left:${pct(m.t)}%;bottom:${6+m.k*16}px;--c:${col(m.i)}">${m.id}${drag&&drag.id===m.id?` · ${m.t}`:""}</span>`).join("")}</div>`+
+    `<div class="bar" id="s-bar" data-total="${total}" style="--u:${100/total}%">`+
+    [...new Set(placed.map(m=>m.t))].map(t=>`<span class="arrline" style="left:${pct(t)}%"></span>`).join("")+
+    L.map((b,k)=>`<div class="seg${b.p?"":" idle"}${k===sSel?" sel":""}${bad.has(k)?" bad":""}" role="button" tabindex="0" data-k="${k}" aria-label="${b.p||"Idle"}, ${b.s} to ${b.e} ms" title="${b.p||"Idle"} · ${b.s}–${b.e}" style="left:${pct(b.s)}%;width:${pct(b.d)}%;--c:${b.p?col(pIndex(b.p)):"none"}">${b.d>1?(b.p||"idle"):""}<span class="grip" data-grip aria-hidden="true"></span></div>`).join("")+
+    `<button type="button" class="plus" data-plus style="left:${pct(end)}%" aria-label="Add a ${sNext||"idle"} bar at t = ${end}" title="Add ${sNext||"idle"} at t = ${end}">+</button>`+
+    [...ticks].map(t=>`<span class="tick" style="left:${pct(t)}%">${t}</span>`).join("")+`</div>`;
+  const sb=sSel!==null?L[sSel]:null;
+  $("s-edit").innerHTML=sb?`${sb.p?pid(sb.p,pIndex(sb.p)):`<span class="pid">Idle</span>`}<span class="counter">t = ${sb.s}–${sb.e}</span>
+      <button type="button" data-act="left" ${sSel>0?"":"disabled"}>◀ Move</button><button type="button" data-act="minus" ${sb.d>1?"":"disabled"}>− 1 ms</button>
+      <span class="score">${sb.d} ms</span><button type="button" data-act="plus">+ 1 ms</button>
+      <button type="button" data-act="right" ${sSel<L.length-1?"":"disabled"}>Move ▶</button><button type="button" data-act="del" class="danger">Delete bar</button>`
+    :`<span class="formula">Select a bar to move, resize or delete it.</span>`;
+  $("s-undo").disabled=!sStack().length;$("s-clear").disabled=!L.length;
+  if(hadFocus&&sSel!==null){const el=document.querySelector(`#s-gantt .seg[data-k="${sSel}"]`);if(el)el.focus({preventScroll:true})}
+}
+$("s-add").addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(b){sNext=b.dataset.add;renderScratch()}});
+$("s-gantt").addEventListener("click",e=>{if(e.target.closest("[data-plus]"))sAdd(sNext||null)});
+$("s-edit").addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(b)sAct(b.dataset.act)});
+$("s-undo").onclick=()=>{const h=sStack();if(!h.length)return;sChecked=false;scratch[algo]=JSON.parse(h.pop());if(sSel!==null&&sSel>=sBars().length)sSel=sBars().length?sBars().length-1:null;$("s-result").textContent="";renderScratch()};
+$("s-clear").onclick=()=>{if(!sBars().length)return;sPush();scratch[algo]=[];sSel=null;$("s-result").textContent="";renderScratch()};
+const sg=$("s-gantt");
+const sDown=e=>{
+  const mk=e.target.closest("[data-mark]");
+  if(mk&&e.button===0){drag={mode:"mark",id:mk.dataset.mark,x0:e.clientX,moved:false};sg.setPointerCapture(e.pointerId);e.preventDefault();return}
+  const seg=e.target.closest(".seg[data-k]");if(!seg||e.button>0)return;
+  sSel=+seg.dataset.k;drag={k:sSel,mode:e.target.closest("[data-grip]")?"size":"move",x0:e.clientX,moved:false,pushed:false};
+  sg.setPointerCapture(e.pointerId);e.preventDefault();renderScratch();
+  const el=document.querySelector(`#s-gantt .seg[data-k="${sSel}"]`);if(el)el.focus({preventScroll:true});
+};
+sg.addEventListener("pointerdown",sDown);$("s-tray").addEventListener("pointerdown",sDown);
+sg.addEventListener("pointermove",e=>{
+  if(!drag)return;
+  if(!drag.moved&&Math.abs(e.clientX-drag.x0)<4)return;drag.moved=true;
+  const bar=$("s-bar"),r=bar.getBoundingClientRect(),t=(e.clientX-r.left)/r.width*+bar.dataset.total;
+  if(drag.mode==="mark"){
+    const tr=$("s-tray").getBoundingClientRect(),inTray=e.clientY<=tr.bottom;
+    const v=inTray||t<-0.6?undefined:Math.max(0,Math.min(+bar.dataset.total,Math.round(t)));
+    if(v!==sMarks[drag.id]){sMarks[drag.id]=v;sChecked=false;$("s-result").textContent="";renderScratch()}
+    return;
+  }
+  const B=sBars(),L=sLayout();if(!B[drag.k])return;
+  const once=()=>{if(!drag.pushed){sPush();drag.pushed=true}};
+  if(drag.mode==="size"){
+    const d=Math.max(1,Math.round(t-L[drag.k].s));
+    if(d!==B[drag.k].d){once();B[drag.k].d=d;renderScratch()}
+  }else{
+    const target=L.filter((b,j)=>j!==drag.k&&(b.s+b.e)/2<t).length;
+    if(target!==drag.k){once();const [m]=B.splice(drag.k,1);B.splice(target,0,m);drag.k=sSel=target;renderScratch()}
+  }
+});
+const endDrag=()=>{const was=drag;if(drag&&drag.pushed)$("s-result").textContent="";drag=null;if(was&&was.mode==="mark")renderScratch()};
+sg.addEventListener("pointerup",endDrag);sg.addEventListener("pointercancel",endDrag);
+sg.addEventListener("keydown",e=>{
+  if(sSel===null)return;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();$("s-undo").click();return}
+  const a={Delete:"del",Backspace:"del",ArrowLeft:"left",ArrowRight:"right","+":"plus","=":"plus","-":"minus"}[e.key];
+  if(a){e.preventDefault();sAct(a)}
+});
+sg.addEventListener("focusin",e=>{const seg=e.target.closest(".seg[data-k]");if(seg&&+seg.dataset.k!==sSel&&!drag){sSel=+seg.dataset.k;renderScratch()}});
+const peek=on=>{if(sPeek===on)return;sPeek=on;$("s-peek").classList.toggle("held",on);renderScratch()};
+$("s-peek").addEventListener("pointerdown",e=>{e.preventDefault();$("s-peek").setPointerCapture(e.pointerId);peek(true)});
+for(const ev of ["pointerup","pointercancel","lostpointercapture","blur"])$("s-peek").addEventListener(ev,()=>peek(false));
+$("s-peek").addEventListener("keydown",e=>{if((e.key===" "||e.key==="Enter")&&!e.repeat){e.preventDefault();peek(true)}});
+$("s-peek").addEventListener("keyup",e=>{if(e.key===" "||e.key==="Enter")peek(false)});
+
+/* ---------- events ---------- */
+$("ptable").addEventListener("input",e=>{const t=e.target;if(!t.dataset.k)return;const v=parseInt(t.value,10);if(isNaN(v))return;procs[t.dataset.i][t.dataset.k]=Math.max(t.dataset.k==="bt"?1:0,v);step=0;recompute()});
+$("ptable").addEventListener("click",e=>{const d=e.target.closest("[data-del]");if(!d)return;procs.splice(+d.dataset.del,1);procs.forEach((p,i)=>p.id="P"+(i+1));step=0;renderProcs();recompute()});
+$("add").onclick=()=>{const last=procs[procs.length-1];procs.push({id:"P"+(procs.length+1),at:last?last.at+1:0,bt:3,pr:procs.length+1});renderProcs();recompute()};
+$("reset").onclick=()=>{procs=JSON.parse(JSON.stringify(QUIZ));step=0;renderProcs();recompute()};
+$("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-algo]");if(!b)return;algo=b.dataset.algo;step=0;try{localStorage.setItem("cpu-algo",algo)}catch(e){}renderTabs();recompute()});
+$("tabs").addEventListener("input",e=>{if(e.target.id!=="quantum")return;const v=parseInt(e.target.value,10);if(v>0){q=v;step=0;$("how").querySelector("h2").textContent=`Round Robin (q = ${q} ms)`;recompute()}});
+const go=s=>{sel=null;step=Math.max(0,Math.min(result.steps.length-1,s));renderViz()};
+$("first").onclick=()=>go(0);$("prev").onclick=()=>go(step-1);$("next").onclick=()=>go(step+1);$("last").onclick=()=>go(Infinity);
+$("play").onclick=()=>{
+  if(timer){clearInterval(timer);timer=null;$("play").textContent="Play";return}
+  if(step===result.steps.length-1)go(0);
+  $("play").textContent="Pause";
+  timer=setInterval(()=>{if(step>=result.steps.length-1){clearInterval(timer);timer=null;$("play").textContent="Play";return}go(step+1)},1100);
+};
+$("practice").onclick=e=>{e.currentTarget.ariaPressed=e.currentTarget.ariaPressed!=="true";renderResults()};
+const pickBar=e=>{const g=e.target.closest(".seg[data-a]");if(!g)return;const a=+g.dataset.a;sel=sel===a?null:a;renderViz();const f=document.querySelector(`.seg[data-a="${a}"]`);if(f)f.focus()};
+$("gantt").addEventListener("click",pickBar);
+$("gantt").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();pickBar(e)}});
+$("check").onclick=()=>{
+  const ins=[...document.querySelectorAll("#rtable input[data-ans]")];let ok=0;
+  ins.forEach(i=>{const good=i.value!==""&&Math.abs(+i.value-+i.dataset.ans)<=0.05;i.classList.toggle("ok",good);i.classList.toggle("no",!good);ok+=good});
+  $("score").textContent=`${ok} / ${ins.length} correct`;
+  checked=true;showSol(selKey);
+};
+$("clear").onclick=()=>renderResults();
+for(const ev of ["mouseover","focusin","click"])$("rtable").addEventListener(ev,e=>{const td=e.target.closest("td[data-sol]");if(td&&td.dataset.sol!==selKey)showSol(td.dataset.sol)});
+
+const applyTheme=t=>{if(t==="dark")document.documentElement.dataset.theme="dark";else delete document.documentElement.dataset.theme;
+  const dark=t==="dark";const lbl=dark?"Switch to light mode":"Switch to dark mode";$("theme").innerHTML=dark?`<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`:`<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>`;$("theme").setAttribute("aria-label",lbl);$("theme").title=lbl};
+try{applyTheme(localStorage.getItem("cpu-theme"))}catch(e){applyTheme(null)}
+$("theme").onclick=()=>{const t=document.documentElement.dataset.theme==="dark"?"light":"dark";applyTheme(t);try{localStorage.setItem("cpu-theme",t)}catch(e){}};
+renderProcs();renderTabs();recompute();
+</script>
+
+</body></html>
