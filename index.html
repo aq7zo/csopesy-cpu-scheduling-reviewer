@@ -156,6 +156,11 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 #s-warn{margin:0;padding-left:18px;color:var(--bad);font-size:14px;display:grid;gap:2px}
 button.danger{color:var(--bad)}
 #s-result:empty{display:none}
+.s-grid{display:flex;flex-wrap:wrap;gap:16px;align-items:start}
+.s-grid>.panel-col{display:grid;gap:10px;align-content:start;flex:1 1 280px;min-width:0}
+.s-grid>#s-rem{flex:0 1 auto}
+.s-grid>[hidden]{display:none}
+.s-grid .label{display:block;line-height:1.4}
 #s-peek{touch-action:none;user-select:none}
 #s-peek.held{filter:brightness(.88)}
 #s-result.good{color:var(--good);font-weight:600}
@@ -237,17 +242,25 @@ td.sel{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
     </div>
     <div class="mtray" id="s-tray"></div>
     <div class="gantt-wrap"><div class="gantt" id="s-gantt"></div></div>
-    <div>
-      <span class="label">Next process · pick one, then press + on the chart to add a bar, drag its edge to resize</span>
-      <div class="chips" id="s-add" style="margin-top:6px"></div>
+    <div class="s-grid">
+      <div class="panel-col">
+        <div>
+          <span class="label">Next process · pick one, then press + on the chart to add a bar, drag its edge to resize</span>
+          <div class="chips" id="s-add" style="margin-top:6px"></div>
+        </div>
+        <div class="row" id="s-edit"></div>
+        <div class="row">
+          <button id="s-peek" type="button" class="primary">Quick compare</button>
+          <button id="s-undo" type="button">Undo</button>
+          <button id="s-clear" type="button" class="ghost">Clear chart</button>
+        </div>
+      </div>
+      <div id="s-rem" class="panel-col" hidden>
+        <span class="label">To keep track remaining burst time, not checked</span>
+        <div class="scroll"><table id="s-remt"></table></div>
+      </div>
     </div>
-    <div class="row" id="s-edit"></div>
     <ul id="s-warn" hidden></ul>
-    <div class="row">
-      <button id="s-peek" type="button" class="primary">Quick compare</button>
-      <button id="s-undo" type="button">Undo</button>
-      <button id="s-clear" type="button" class="ghost">Clear chart</button>
-    </div>
     <p id="s-result" aria-live="polite"></p>
   </section>
   </div>
@@ -456,7 +469,7 @@ function renderResults(){
   $("rtable").innerHTML=`<thead><tr><th>Process</th><th class="num">${V("st","Start")}</th><th class="num">${V("ct","CT")}</th><th class="num">${V("tat","TAT")}</th><th class="num">${V("wt","WT")}</th>${multi&&!practice?"<th>Ran during</th>":""}</tr></thead><tbody>`+
     rows.map(r=>`<tr data-id="${r.id}"><td>${pid(r.id,r.i)}</td>${cell(r.first,`a-${r.id}-start`,r.id+":start")}${cell(r.ct,`a-${r.id}-ct`,r.id+":ct")}${cell(r.tat,`a-${r.id}-tat`,r.id+":tat")}${cell(r.wt,`a-${r.id}-wt`,r.id+":wt")}${multi&&!practice?`<td class="mono formula">${r.runs.map(x=>x.join("–")).join(", ")}</td>`:""}</tr>`).join("")+
     `<tr class="avg"><td>Average</td><td></td><td></td>${cell(+avg("tat").toFixed(2),"a-avg-tat","avg:tat")}${cell(+avg("wt").toFixed(2),"a-avg-wt","avg:wt")}${multi&&!practice?"<td></td>":""}</tr></tbody>`;
-  $("viz").hidden=practice;$("scratch").hidden=!practice;renderScratch();document.querySelector("main").classList.toggle("practicing",practice);
+  $("viz").hidden=practice;$("scratch").hidden=!practice;renderScratch();renderRem();document.querySelector("main").classList.toggle("practicing",practice);
   if(!document.querySelector(`#rtable td[data-sol="${selKey}"]`))selKey=(rows[0]?rows[0].id:"avg")+":tat";
   showSol(selKey);
   highlightRow();
@@ -488,6 +501,12 @@ function sAct(a){
   else if(a==="minus")B[k].d--;
   else{const j=a==="left"?k-1:k+1;[B[j],B[k]]=[B[k],B[j]];sSel=j}
   $("s-result").textContent="";renderScratch();
+}
+const sRem={}; // practice-only scratch values for SRTF/RR remaining burst time
+function renderRem(){
+  const on=algo==="srtf"||algo==="rr";$("s-rem").hidden=!on;if(!on)return;
+  $("s-remt").innerHTML=`<thead><tr><th>Process</th><th class="num">${V("bt","Rem. BT")}</th></tr></thead><tbody>`+
+    procs.map((p,i)=>`<tr><td>${pid(p.id,i)}</td><td class="num practice"><input type="number" min="0" data-rem="${p.id}" value="${sRem[p.id]??""}" aria-label="${p.id} remaining burst time"></td></tr>`).join("")+"</tbody>";
 }
 function renderScratch(){
   if(!result||$("scratch").hidden)return;
@@ -604,6 +623,7 @@ $("play").onclick=()=>{
   $("play").textContent="Pause";
   timer=setInterval(()=>{if(step>=result.steps.length-1){clearInterval(timer);timer=null;$("play").textContent="Play";return}go(step+1)},1100);
 };
+$("s-remt").addEventListener("input",e=>{const k=e.target.dataset.rem;if(k)sRem[k]=e.target.value});
 $("practice").onclick=e=>{e.currentTarget.ariaPressed=e.currentTarget.ariaPressed!=="true";renderResults()};
 const pickBar=e=>{const g=e.target.closest(".seg[data-a]");if(!g)return;const a=+g.dataset.a;sel=sel===a?null:a;renderViz();const f=document.querySelector(`.seg[data-a="${a}"]`);if(f)f.focus()};
 $("gantt").addEventListener("click",pickBar);
