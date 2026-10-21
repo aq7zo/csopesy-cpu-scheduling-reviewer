@@ -240,6 +240,7 @@ td.sel{outline:2px solid var(--accent);outline-offset:-2px;border-radius:4px}
       <h2>Process data set</h2>
       <div class="row">
         <button id="add" type="button">Add process</button>
+        <button id="rand" type="button" class="ghost">Randomize</button>
         <button id="reset" type="button" class="ghost">Reset to quiz data</button>
       </div>
     </div>
@@ -651,6 +652,8 @@ $("ptable").addEventListener("input",e=>{const t=e.target;if(!t.dataset.k)return
 $("ptable").addEventListener("click",e=>{const d=e.target.closest("[data-del]");if(!d)return;procs.splice(+d.dataset.del,1);procs.forEach((p,i)=>p.id="P"+(i+1));step=0;renderProcs();recompute()});
 $("add").onclick=()=>{const last=procs[procs.length-1];procs.push({id:"P"+(procs.length+1),at:last?last.at+1:0,bt:3,pr:procs.length+1});renderProcs();recompute()};
 $("reset").onclick=()=>{procs=JSON.parse(JSON.stringify(QUIZ));step=0;renderProcs();recompute()};
+$("rand").onclick=()=>{const r=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1)),n=r(4,6),pr=[...Array(n)].map((_,i)=>i+1).sort(()=>Math.random()-.5);let at=0;
+  procs=pr.map((p,i)=>({id:"P"+(i+1),at:i?at+=r(0,3):0,bt:r(1,10),pr:p}));step=0;renderProcs();recompute()};
 $("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-algo]");if(!b)return;algo=b.dataset.algo;step=0;try{localStorage.setItem("cpu-algo",algo)}catch(e){}renderTabs();recompute()});
 $("quantum").addEventListener("input",e=>{const v=parseInt(e.target.value,10);if(v>0){q=v;step=0;$("how").querySelector("h2").textContent=`Round Robin (q = ${q} ms)`;recompute()}});
 const go=s=>{sel=null;step=Math.max(0,Math.min(result.steps.length-1,s));renderViz()};
