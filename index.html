@@ -594,14 +594,15 @@ function renderScratch(){
       <span class="score">${sb.d} ms</span><button type="button" data-act="plus">+ 1 ms</button>
       <button type="button" data-act="right" ${sSel<L.length-1?"":"disabled"}>Move${IC.right}</button><button type="button" data-act="del" class="danger">Delete bar</button>`
     :`<span class="formula">Select a bar to move, resize or delete it.</span>`;
-  $("s-undo").disabled=!sStack().length;$("s-clear").disabled=!L.length;
+  $("s-undo").disabled=!sStack().length;$("s-clear").disabled=!L.length&&!placed.length;
   if(hadFocus&&sSel!==null){const el=document.querySelector(`#s-gantt .seg[data-k="${sSel}"]`);if(el)el.focus({preventScroll:true})}
 }
 $("s-add").addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(b){sNext=b.dataset.add;renderScratch()}});
 $("s-gantt").addEventListener("click",e=>{if(e.target.closest("[data-plus]"))sAdd(sNext||null)});
 $("s-edit").addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(b)sAct(b.dataset.act)});
 $("s-undo").onclick=()=>{const h=sStack();if(!h.length)return;sChecked=false;scratch[algo]=JSON.parse(h.pop());if(sSel!==null&&sSel>=sBars().length)sSel=sBars().length?sBars().length-1:null;$("s-result").textContent="";renderScratch()};
-$("s-clear").onclick=()=>{if(!sBars().length)return;sPush();scratch[algo]=[];sSel=null;$("s-result").textContent="";renderScratch()};
+const sClearMarks=()=>{for(const k in sMarks)delete sMarks[k]};
+$("s-clear").onclick=()=>{if(!sBars().length&&!Object.keys(sMarks).length)return;sPush();scratch[algo]=[];sClearMarks();sSel=null;$("s-result").textContent="";renderScratch()};
 const sg=$("s-gantt");
 const sDown=e=>{
   const mk=e.target.closest("[data-mark]");
@@ -654,7 +655,9 @@ $("add").onclick=()=>{const last=procs[procs.length-1];procs.push({id:"P"+(procs
 $("reset").onclick=()=>{procs=JSON.parse(JSON.stringify(QUIZ));step=0;renderProcs();recompute()};
 $("rand").onclick=()=>{const r=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1)),n=r(4,6),pr=[...Array(n)].map((_,i)=>i+1).sort(()=>Math.random()-.5);let at=0;
   procs=pr.map((p,i)=>({id:"P"+(i+1),at:i?at+=r(0,3):0,bt:r(1,10),pr:p}));step=0;renderProcs();recompute()};
-$("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-algo]");if(!b)return;algo=b.dataset.algo;step=0;try{localStorage.setItem("cpu-algo",algo)}catch(e){}renderTabs();recompute()});
+$("tabs").addEventListener("click",e=>{const b=e.target.closest("[data-algo]");if(!b||b.dataset.algo===algo)return;algo=b.dataset.algo;step=0;
+  scratch[algo]=[];sHist[algo]=[];sClearMarks();sSel=null;sChecked=false;$("s-result").textContent=""; /* new technique = fresh practice chart */
+  try{localStorage.setItem("cpu-algo",algo)}catch(e){}renderTabs();recompute()});
 $("quantum").addEventListener("input",e=>{const v=parseInt(e.target.value,10);if(v>0){q=v;step=0;$("how").querySelector("h2").textContent=`Round Robin (q = ${q} ms)`;recompute()}});
 const go=s=>{sel=null;step=Math.max(0,Math.min(result.steps.length-1,s));renderViz()};
 $("first").onclick=()=>go(0);$("prev").onclick=()=>go(step-1);$("next").onclick=()=>go(step+1);$("last").onclick=()=>go(Infinity);
